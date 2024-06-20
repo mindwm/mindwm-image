@@ -15,8 +15,9 @@ FROM alpine:latest
 
 RUN apk update && \
  	apk add py3-pip tmux kubectl helm openjdk21-jre-headless asciinema uuidgen \
-	bash
+	bash shadow
     
+RUN chsh -s /bin/bash root
 WORKDIR /tmp
 ADD ./requirements.txt .
 RUN pip3 install --break-system-packages -r ./requirements.txt
@@ -32,7 +33,8 @@ ENV LANG=C
 ENV PORT=80
 # workaround for PS1
 # for some reason ENV PS1=\u@\h:~\W doesn't work
-RUN echo 'export PS1="\u@\h:~\W # "' >> /etc/bash/bashrc # alpine specific path 
-ENV SHELL=/bin/bash
+RUN echo 'export PS1="\u@\h:~\W $ "' >> /etc/bash/bashrc # alpine specific path 
+#ENV SHELL=/bin/bash
+RUN echo uptime>/tmp/uptime
 
 ENTRYPOINT ["/bin/bash", "-c", "export MINDWM_UUID=`uuidgen`; tmuxp load -d ~/.tmuxp/entrypoint.yaml && sleep 5 && tmux ls && ttyd -W -p${PORT} tmux attach" ]

@@ -6,7 +6,7 @@ metadata:
 data:
   entrypoint.yaml: | 
     session_name: mindwm-terminal
-    sell_command_before: 
+    shell_command_before: 
       - export MINDWM_ASCIINEMA_REC_PIPE="/tmp/${MINDWM_UUID}.sock"
     windows:
       - window_name: mindwm-terminal
@@ -26,11 +26,11 @@ data:
                   test -p "${MINDWM_ASCIINEMA_REC_PIPE}" && break
                   sleep 1;
                 done
-                    - | 
+              - | 
                 asciinema rec --stdin --append "${MINDWM_ASCIINEMA_REC_PIPE}"
-                - shell_command:
-                    - who
-                    - python3 /usr/local/mindwm-manager/main.py
+          - shell_command:
+              - who
+              - python3 /usr/local/mindwm-manager/main.py
 ---
 apiVersion: v1
 kind: Pod
