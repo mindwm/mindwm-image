@@ -14,7 +14,7 @@ RUN git clone -b dev --depth 1 https://github.com/mindwm/poc-mindwm-dev
 FROM alpine:latest
 
 RUN apk update && \
- 	apk add py3-pip tmux kubectl helm openjdk21-jre-headless asciinema
+ 	apk add py3-pip tmux kubectl helm openjdk21-jre-headless asciinema uuidgen
     
 WORKDIR /tmp
 ADD ./requirements.txt .
@@ -30,4 +30,4 @@ ENV PATH="/usr/local/cypher-shell/bin/:$PATH"
 ENV LANG=C 
 ENV PORT=80
 
-ENTRYPOINT ["sh", "-c", "tmuxp load -d ~/.tmuxp/entrypoint.yaml && sleep 5 && tmux ls && ttyd -W -p${PORT} tmux attach" ]
+ENTRYPOINT ["sh", "-c", "export MINDWM_UUID=`uuidgen`; tmuxp load -d ~/.tmuxp/entrypoint.yaml && sleep 5 && tmux ls && ttyd -W -p${PORT} tmux attach" ]
