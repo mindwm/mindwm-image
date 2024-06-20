@@ -13,7 +13,7 @@ RUN chmod +x ./ttyd.i686
 FROM alpine:latest
 
 RUN apk update && \
- 	apk add py3-pip tmux kubectl helm openjdk21-jre-headless
+ 	apk add py3-pip tmux kubectl helm openjdk21-jre-headless asciinema
     
 WORKDIR /tmp
 ADD ./requirements.txt .
@@ -24,7 +24,8 @@ COPY --from=builder /tmp/ttyd.i686 /usr/local/bin/ttyd
 COPY ./entrypoint.yaml /root/.tmuxp/entrypoint.yaml
 
 ENV PATH="/usr/local/cypher-shell/bin/:$PATH" 
-ENV LANG=C
+# workaround for https://github.com/tmux-python/libtmux/issues/265
+ENV LANG=C 
 ENV PORT=80
 
 ENTRYPOINT ["sh", "-c", "tmuxp load -d ~/.tmuxp/entrypoint.yaml && sleep 5 && tmux ls && ttyd -W -p${PORT} tmux attach" ]
