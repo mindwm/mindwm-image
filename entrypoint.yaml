@@ -1,0 +1,7 @@
+session_name: hello_world_session
+windows:
+  - window_name: hello_window
+    layout: main-vertical
+    panes:
+      - shell_command:
+          - echo "Hello, World!"

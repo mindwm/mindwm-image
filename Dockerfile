@@ -10,7 +10,6 @@ RUN unzip cypher-shell-5.20.0.zip
 ADD https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.i686 .
 RUN chmod +x ./ttyd.i686
 
-
 FROM alpine:latest
 
 RUN apk update && \
@@ -22,5 +21,10 @@ RUN pip3 install --break-system-packages -r ./requirements.txt
 COPY --from=builder /tmp/nats-0.1.4-linux-amd64/nats /usr/local/bin/nats
 COPY --from=builder /tmp/cypher-shell-5.20.0/ /usr/local/cypher-shell
 COPY --from=builder /tmp/ttyd.i686 /usr/local/bin/ttyd
+COPY ./entrypoint.yaml /root/.tmuxp/entrypoint.yaml
 
 ENV PATH="/usr/local/cypher-shell/bin/:$PATH" 
+ENV LANG=C
+
+ENTRYPOINT ["sh", "-c", "tmuxp load -d ~/.tmuxp/entrypoint.yaml && sleep 5 && tmux ls" ]
+#ENTRYPOINT ["sh", "-c", "tmux ls" ]
