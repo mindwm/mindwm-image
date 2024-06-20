@@ -9,6 +9,7 @@ spec:
   containers:
   - name: mindwm-client
     image: ghcr.io/mindwm/mindwm-image/mindwm-image:mindwm-client
+    imagePullPolicy: Always
     ports:
       - containerPort: 80
         name: ttyd
