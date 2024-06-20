@@ -14,7 +14,8 @@ RUN git clone -b dev --depth 1 https://github.com/mindwm/poc-mindwm-dev
 FROM alpine:latest
 
 RUN apk update && \
- 	apk add py3-pip tmux kubectl helm openjdk21-jre-headless asciinema uuidgen
+ 	apk add py3-pip tmux kubectl helm openjdk21-jre-headless asciinema uuidgen \
+	bash
     
 WORKDIR /tmp
 ADD ./requirements.txt .
@@ -29,5 +30,9 @@ ENV PATH="/usr/local/cypher-shell/bin/:$PATH"
 # workaround for https://github.com/tmux-python/libtmux/issues/265
 ENV LANG=C 
 ENV PORT=80
+# workaround for PS1
+# for some reason ENV PS1=\u@\h:~\W doesn't work
+RUN echo 'export PS1="\u@\h:~\W # "' >> /etc/bash/bashrc # alpien specific path 
+ENV SHELL=/bin/bash
 
-ENTRYPOINT ["sh", "-c", "export MINDWM_UUID=`uuidgen`; tmuxp load -d ~/.tmuxp/entrypoint.yaml && sleep 5 && tmux ls && ttyd -W -p${PORT} tmux attach" ]
+ENTRYPOINT ["$SHELL", "-c", "export MINDWM_UUID=`uuidgen`; tmuxp load -d ~/.tmuxp/entrypoint.yaml && sleep 5 && tmux ls && ttyd -W -p${PORT} tmux attach" ]
