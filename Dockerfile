@@ -25,6 +25,7 @@ COPY ./entrypoint.yaml /root/.tmuxp/entrypoint.yaml
 
 ENV PATH="/usr/local/cypher-shell/bin/:$PATH" 
 ENV LANG=C
+ENV PORT=80
 
-ENTRYPOINT ["sh", "-c", "tmuxp load -d ~/.tmuxp/entrypoint.yaml && sleep 5 && tmux ls" ]
+ENTRYPOINT ["sh", "-c", "tmuxp load -d ~/.tmuxp/entrypoint.yaml && sleep 5 && tmux ls && ttyd -W -p${PORT} tmux attach" ]
 #ENTRYPOINT ["sh", "-c", "tmux ls" ]
