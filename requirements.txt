@@ -1,1 +1,8 @@
 tmuxp
+# mindwm-manager
+nats-py 
+python-decouple 
+pyte
+aiofiles
+tabulate
+textxfsm
