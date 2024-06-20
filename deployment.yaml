@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mindwm-client
+  namespace: default
+  labels:
+    app: mindwm-client
+spec:
+  containers:
+  - name: mindwm-client
+    image: ghcr.io/mindwm/mindwm-image/mindwm-image:mindwm-client
+    ports:
+      - containerPort: 80
+        name: ttyd
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mindwm-client-service
+  namespace: default
+spec:
+  selector:
+    app: mindwm-client
+  ports:
+    - port: 80
+      name: ttyd
+      nodePort: 30111
+  type: LoadBalancer
