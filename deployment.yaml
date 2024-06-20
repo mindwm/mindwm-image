@@ -1,3 +1,37 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindwm-client-config
+data:
+  entrypoint.yaml: | 
+    session_name: mindwm-terminal
+    sell_command_before: 
+      - export MINDWM_ASCIINEMA_REC_PIPE="/tmp/${MINDWM_UUID}.sock"
+    windows:
+      - window_name: mindwm-terminal
+        layout: main-horizontal
+        shell_command_before: 
+          - export MINDWM_TMUX=`echo -n ${TMUX} | base64`
+          - export MINDWM_BACK_NATS_HOST=nats.nats
+          - export MINDWM_BACK_NATS_PORT=4222
+          - export MINDWM_BACK_NATS_USER=root
+          - export MINDWM_BACK_NATS_PASS=r00tpass
+          - export MINDWM_BACK_NATS_SUBJECT_PREFIX="mindwm.${USER}.`hostname -s`.tmux.${MINDWM_TMUX}.${MINDWM_UUID}.0.0"
+        panes:
+          - shell_command:
+              - |
+                while :; do 
+                  echo -n .
+                  test -p "${MINDWM_ASCIINEMA_REC_PIPE}" && break
+                  sleep 1;
+                done
+                    - | 
+                asciinema rec --stdin --append "${MINDWM_ASCIINEMA_REC_PIPE}"
+                - shell_command:
+                    - who
+                    - python3 /usr/local/mindwm-manager/main.py
+---
 apiVersion: v1
 kind: Pod
 metadata:
@@ -10,9 +44,17 @@ spec:
   - name: mindwm-client
     image: ghcr.io/mindwm/mindwm-image/mindwm-image:mindwm-client
     imagePullPolicy: Always
+    volumeMounts:
+      - mountPath: /root/.tmuxp/
+        name: config-volume
     ports:
       - containerPort: 80
         name: ttyd
+  volumes:
+    - name: config-volume
+      configMap:
+        name: mindwm-client-config
+
 ---
 apiVersion: v1
 kind: Service

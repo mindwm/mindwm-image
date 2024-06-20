@@ -32,7 +32,7 @@ ENV LANG=C
 ENV PORT=80
 # workaround for PS1
 # for some reason ENV PS1=\u@\h:~\W doesn't work
-RUN echo 'export PS1="\u@\h:~\W # "' >> /etc/bash/bashrc # alpien specific path 
+RUN echo 'export PS1="\u@\h:~\W # "' >> /etc/bash/bashrc # alpine specific path 
 ENV SHELL=/bin/bash
 
-ENTRYPOINT ["$SHELL", "-c", "export MINDWM_UUID=`uuidgen`; tmuxp load -d ~/.tmuxp/entrypoint.yaml && sleep 5 && tmux ls && ttyd -W -p${PORT} tmux attach" ]
+ENTRYPOINT ["/bin/bash", "-c", "export MINDWM_UUID=`uuidgen`; tmuxp load -d ~/.tmuxp/entrypoint.yaml && sleep 5 && tmux ls && ttyd -W -p${PORT} tmux attach" ]
