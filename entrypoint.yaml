@@ -16,10 +16,10 @@ windows:
           - |
             while :; do 
               echo -n .
-              test -S "${MINDWM_ASCIINEMA_REC_PIPE}"
+              test -p "${MINDWM_ASCIINEMA_REC_PIPE}" && break
               sleep 1;
             done
-          - |
+          - | 
             asciinema rec --stdin --append "${MINDWM_ASCIINEMA_REC_PIPE}"
       - shell_command:
           - python3 /usr/local/mindwm-manager/main.py
