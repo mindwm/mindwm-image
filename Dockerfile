@@ -35,6 +35,5 @@ ENV PORT=80
 # for some reason ENV PS1=\u@\h:~\W doesn't work
 RUN echo 'export PS1="\u@\h:~\W $ "' >> /etc/bash/bashrc # alpine specific path 
 #ENV SHELL=/bin/bash
-RUN echo uptime>/tmp/uptime
 
 ENTRYPOINT ["/bin/bash", "-c", "export MINDWM_UUID=`uuidgen`; tmuxp load -d ~/.tmuxp/entrypoint.yaml && sleep 5 && tmux ls && ttyd -W -p${PORT} tmux attach" ]

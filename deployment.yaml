@@ -8,16 +8,17 @@ data:
     session_name: mindwm-terminal
     shell_command_before: 
       - export MINDWM_ASCIINEMA_REC_PIPE="/tmp/${MINDWM_UUID}.sock"
+      - export MINDWM_TMUX=`echo -n ${TMUX} | base64`
+      - export MINDWM_BACK_NATS_SUBJECT_PREFIX="mindwm.`whoami`.`hostname -s`.tmux.${MINDWM_TMUX}.${MINDWM_UUID}.0.0"
+      - export MINDWM_BACK_NATS_PORT=4222
+      - export MINDWM_BACK_NATS_HOST=nats.nats
+      - export MINDWM_BACK_NATS_USER=root
+      - export MINDWM_BACK_NATS_PASS=r00tpass
+      - export NATS_URL=nats://${MINDWM_BACK_NATS_USER}:${MINDWM_BACK_NATS_PASS}@${MINDWM_BACK_NATS_HOST}:${MINDWM_BACK_NATS_PORT}
     windows:
       - window_name: mindwm-terminal
         layout: main-horizontal
         shell_command_before: 
-          - export MINDWM_TMUX=`echo -n ${TMUX} | base64`
-          - export MINDWM_BACK_NATS_HOST=nats.nats
-          - export MINDWM_BACK_NATS_PORT=4222
-          - export MINDWM_BACK_NATS_USER=root
-          - export MINDWM_BACK_NATS_PASS=r00tpass
-          - export MINDWM_BACK_NATS_SUBJECT_PREFIX="mindwm.${USER}.`hostname -s`.tmux.${MINDWM_TMUX}.${MINDWM_UUID}.0.0"
         panes:
           - shell_command:
               - |
@@ -31,6 +32,16 @@ data:
           - shell_command:
               - who
               - python3 /usr/local/mindwm-manager/main.py
+      - window_name: nats
+        layout: main-horizontal
+        shell_command_before: 
+        panes:
+          - shell_command:
+              - |
+                nats -s ${NATS_URL} subscribe "${MINDWM_BACK_NATS_SUBJECT_PREFIX}.>"
+          - shell_command:
+              - |
+                watch nats -s ${NATS_URL} stream ls
 ---
 apiVersion: v1
 kind: Pod
