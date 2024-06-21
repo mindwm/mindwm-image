@@ -1,0 +1,145 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindwm-client-config
+data:
+  entrypoint.yaml: | 
+    session_name: mindwm-terminal
+    shell_command_before: 
+      - export MINDWM_ASCIINEMA_REC_PIPE="/tmp/${MINDWM_UUID}.sock"
+      - export MINDWM_TMUX=`echo -n ${TMUX} | base64`
+      - export MINDWM_BACK_NATS_SUBJECT_PREFIX="mindwm.`whoami`.`hostname -s`.tmux.${MINDWM_TMUX}.${MINDWM_UUID}.0.0"
+      - export MINDWM_BACK_NATS_PORT=4222
+      - export MINDWM_BACK_NATS_HOST=nats.nats
+      - export MINDWM_BACK_NATS_USER=root
+      - export MINDWM_BACK_NATS_PASS=r00tpass
+      - export NATS_URL=nats://${MINDWM_BACK_NATS_USER}:${MINDWM_BACK_NATS_PASS}@${MINDWM_BACK_NATS_HOST}:${MINDWM_BACK_NATS_PORT}
+    windows:
+      - window_name: mindwm-terminal
+        layout: main-horizontal
+        shell_command_before: 
+        panes:
+          -
+            focus: true
+            shell_command:
+              - |
+                while :; do 
+                  echo -n .
+                  test -p "${MINDWM_ASCIINEMA_REC_PIPE}" && break
+                  sleep 1;
+                done
+              - | 
+                asciinema rec --stdin --append "${MINDWM_ASCIINEMA_REC_PIPE}"
+          - shell_command:
+              - who
+              - python3 /usr/local/mindwm-manager/main.py
+      - window_name: nats
+        layout: main-horizontal
+        panes:
+          - shell_command:
+              - |
+                nats -s ${NATS_URL} subscribe "${MINDWM_BACK_NATS_SUBJECT_PREFIX}.>"
+          - shell_command:
+              - |
+                watch nats -s ${NATS_URL} stream ls
+      - window_name: resources
+        layout: main-horizontal
+        panes:
+          - shell_command: 
+            - |
+              cat<<EOF | yq | tee user.yaml 
+              apiVersion: mindwm.io/v1beta1
+              kind: User
+              metadata:
+                name: user-`whoami`
+              spec:
+                context: [ "${CONTEXT_NAME}" ]
+                name: "`whoami`"
+              EOF
+            - |
+              cat<<EOF | yq | tee host.yaml 
+              apiVersion: mindwm.io/v1beta1
+              kind: Host
+              metadata:
+                name: host-`hostname`
+              spec:
+                name: "`hostname`"
+                username: "`whoami`"
+              EOF
+            - |
+              kubectl apply -f user.yaml -f host.yaml
+      - window_name: neo4j
+        layout: main-horizontal
+        panes:
+          - shell_command: 
+            - |
+              cd /usr/local/cypher-shell/bin
+              ./cypher-shell -a bolt://team-a-neo4j.context-${CONTEXT_NAME}:7687 -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD}
+            - |
+              MATCH (n) RETURN count(n) AS totalNodes;
+        
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cluster-admin-sa
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-admin-sa-binding
+subjects:
+- kind: ServiceAccount
+  name: cluster-admin-sa
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mindwm-client
+  namespace: default
+  labels:
+    app: mindwm-client
+spec:
+  serviceAccountName: cluster-admin-sa
+  containers:
+  - name: mindwm-client
+    image: ghcr.io/mindwm/mindwm-image/mindwm-image:mindwm-client
+    env:
+      - name: CONTEXT_NAME
+        value: "team-a"
+      - name: NEO4J_USERNAME
+        value: "neo4j"
+      - name: NEO4J_PASSWORD
+        value: password
+    # imagePullPolicy: Always
+    volumeMounts:
+      - mountPath: /root/.tmuxp/
+        name: config-volume
+    ports:
+      - containerPort: 80
+        name: ttyd
+  volumes:
+    - name: config-volume
+      configMap:
+        name: mindwm-client-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mindwm-client-service
+  namespace: default
+spec:
+  selector:
+    app: mindwm-client
+  ports:
+    - port: 80
+      name: ttyd
+      nodePort: 30111
+  type: LoadBalancer
