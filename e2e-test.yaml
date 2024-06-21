@@ -24,6 +24,29 @@ data:
       - export MINDWM_BACK_NATS_PASS=r00tpass
       - export NATS_URL=nats://${MINDWM_BACK_NATS_USER}:${MINDWM_BACK_NATS_PASS}@${MINDWM_BACK_NATS_HOST}:${MINDWM_BACK_NATS_PORT}
     windows:
+      - window_name: prepare_env
+        layout: main-horizontal
+        panes:
+          - shell_command:
+              - |
+                pane_title "prepare_env: generate host.yaml"
+                cat<<EOF | yq | tee host.yaml 
+                apiVersion: mindwm.io/v1beta1
+                kind: Host
+                metadata:
+                  name: host-`hostname`
+                spec:
+                  name: "`hostname`"
+                  username: "`whoami`"
+                EOF
+              - |
+                pane_title "prepare_env: apply host.yaml"
+                kubectl apply -f host.yaml
+              - | 
+                pane_title "prepare_env: waiting for NatsJetStreamChannel is ready"
+                kubectl wait --namespace user-`whoami` --for=condition=Ready --timeout=180s NatsJetStreamChannel/`hostname`-broker-kne-trigger
+                kubectl wait --namespace user-`whoami` --for=condition=Ready --timeout=180s broker/`hostname`-broker
+                pane_title "prepare_env: host environment is ready"
       - window_name: Fire event
         layout: main-horizontal
         panes:
