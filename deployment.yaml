@@ -20,7 +20,9 @@ data:
         layout: main-horizontal
         shell_command_before: 
         panes:
-          - shell_command:
+          -
+            focus: true
+            shell_command:
               - |
                 while :; do 
                   echo -n .
