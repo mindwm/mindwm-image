@@ -99,6 +99,9 @@ spec:
   containers:
   - name: mindwm-client
     image: ghcr.io/mindwm/mindwm-image/mindwm-image:mindwm-client
+    env:
+      - name: CONTEXT_NAME
+        value: "team-a"
     imagePullPolicy: Always
     volumeMounts:
       - mountPath: /root/.tmuxp/
