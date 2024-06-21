@@ -15,7 +15,7 @@ FROM alpine:latest
 
 RUN apk update && \
  	apk add py3-pip tmux kubectl helm openjdk21-jre-headless asciinema uuidgen \
-	bash shadow
+	bash shadow jq yq
     
 RUN chsh -s /bin/bash root
 WORKDIR /tmp

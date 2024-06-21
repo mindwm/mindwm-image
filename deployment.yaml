@@ -34,7 +34,6 @@ data:
               - python3 /usr/local/mindwm-manager/main.py
       - window_name: nats
         layout: main-horizontal
-        shell_command_before: 
         panes:
           - shell_command:
               - |
@@ -42,6 +41,33 @@ data:
           - shell_command:
               - |
                 watch nats -s ${NATS_URL} stream ls
+      - window_name: resources
+        layout: main-horizontal
+        panes:
+          - shell_command: 
+            - |
+              cat<<EOF | yq | tee user.yaml 
+              apiVersion: mindwm.io/v1beta1
+              kind: User
+              metadata:
+                name: user-`whoami`
+              spec:
+                context: [ "${CONTEXT_NAME}" ]
+                name: "`whoami`"
+              EOF
+            - |
+              cat<<EOF | yq | tee host.yaml 
+              apiVersion: mindwm.io/v1beta1
+              kind: Host
+              metadata:
+                name: host-`hostname`
+              spec:
+                name: "`hostname`"
+                username: "`whoami`"
+              EOF
+            - |
+              kubectl apply -f user.yaml -f host.yaml
+        
 ---
 apiVersion: v1
 kind: Pod
