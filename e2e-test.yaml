@@ -11,7 +11,7 @@ data:
       - trap 'echo "Error occurred on line $LINENO"; sleep infinity' ERR
       - 'tmux set -g pane-border-format "#{pane_index} #{pane_title}"'
       - 'tmux set -g pane-border-status bottom'
-      - alias pane_title='printf "\033]2%s\033\\"'
+      - alias pane_title="printf '\e]0;%s\e\\'"
       - export MINDWM_E2E_PS1='root@mindwm-client:~tmp $'
       - export MINDWM_E2E_INPUT_CMD="echo ${MINDWM_UUID}"
       - export MINDWM_E2E_EXPECTED_OUTPUT="${MINDWM_UUID}"
