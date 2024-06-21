@@ -8,10 +8,10 @@ data:
     session_name: mindwm-terminal
     shell_command_before: 
       - set -e 
-      - trap 'echo "Error occurred on line $LINENO"; sleep infinity' ERR
+      - trap "echo fail; printf '\e]0;%s\e\\' fail; sleep infinity" ERR
       - 'tmux set -g pane-border-format "#{pane_index} #{pane_title}"'
-      - 'tmux set -g pane-border-status bottom'
       - alias pane_title="printf '\e]0;%s\e\\'"
+      - 'tmux set -g pane-border-status bottom'
       - export MINDWM_E2E_PS1='root@mindwm-client:~tmp $'
       - export MINDWM_E2E_INPUT_CMD="echo ${MINDWM_UUID}"
       - export MINDWM_E2E_EXPECTED_OUTPUT="${MINDWM_UUID}"
@@ -60,8 +60,15 @@ data:
         panes:
           - shell_command:
               - |
-                pane_title "nats_wait"
-                nats -s ${NATS_URL} sub -r ${MINDWM_BACK_NATS_SUBJECT_PREFIX}.iodocument --count 1
+                pane_title "nats_msg: ok run nats"
+                nats -s ${NATS_URL} sub -r ${MINDWM_BACK_NATS_SUBJECT_PREFIX}.iodocument --count 1 | tee nats_message.json
+              - | 
+                test "`cat nats_message.json | jq -r '.data.iodocument.ps1'`" == "${MINDWM_E2E_PS1}"
+                test "`cat nats_message.json | jq -r '.data.iodocument.input'`" == "${MINDWM_E2E_INPUT_CMD}"
+                test "`cat nats_message.json | jq -r '.data.iodocument.output'`" == "${MINDWM_E2E_EXPECTED_OUTPUT}"
+                pane_title "nats_msg: ok"
+
+                
           - shell_command:
               - |
                 watch nats -s ${NATS_URL} stream ls
