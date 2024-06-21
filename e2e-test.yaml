@@ -1,0 +1,131 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindwm-e2e-config
+data:
+  entrypoint.yaml: | 
+    session_name: mindwm-terminal
+    shell_command_before: 
+      - set -e 
+      - trap 'echo "Error occurred on line $LINENO"; sleep infinity' ERR
+      - 'tmux set -g pane-border-format "#{pane_index} #{pane_title}"'
+      - 'tmux set -g pane-border-status bottom'
+      - alias pane_title='printf "\033]2%s\033\\"'
+      - export MINDWM_E2E_PS1='root@mindwm-client:~tmp $'
+      - export MINDWM_E2E_INPUT_CMD="echo ${MINDWM_UUID}"
+      - export MINDWM_E2E_EXPECTED_OUTPUT="${MINDWM_UUID}"
+      - export MINDWM_ASCIINEMA_REC_PIPE="/tmp/${MINDWM_UUID}.sock"
+      - export MINDWM_TMUX=`echo -n ${TMUX} | base64`
+      - export MINDWM_BACK_NATS_SUBJECT_PREFIX="mindwm.`whoami`.`hostname -s`.tmux.${MINDWM_TMUX}.${MINDWM_UUID}.0.0"
+      - export MINDWM_BACK_NATS_PORT=4222
+      - export MINDWM_BACK_NATS_HOST=nats.nats
+      - export MINDWM_BACK_NATS_USER=root
+      - export MINDWM_BACK_NATS_PASS=r00tpass
+      - export NATS_URL=nats://${MINDWM_BACK_NATS_USER}:${MINDWM_BACK_NATS_PASS}@${MINDWM_BACK_NATS_HOST}:${MINDWM_BACK_NATS_PORT}
+    windows:
+      - window_name: Fire event
+        layout: main-horizontal
+        panes:
+          - shell_command:
+              - |
+                while :; do 
+                  pgrep -f "nats -s ${NATS_URL} sub -r ${MINDWM_BACK_NATS_SUBJECT_PREFIX}.iodocument --count 1" || {
+                    echo -n .
+                    sleep 1
+                  } && break
+                done
+              - |
+                cat<<EOF | yq | tee io_document.json | nats -s "${NATS_URL}" pub "${MINDWM_BACK_NATS_SUBJECT_PREFIX}.iodocument"
+                {                                                                                         
+                  "specversion": "1.0",
+                  "type": "iodocument",
+                  "source": "${MINDWM_BACK_NATS_SUBJECT_PREFIX}",
+                  "subject": "${MINDWM_BACK_NATS_SUBJECT_PREFIX}",
+                  "id": "`uuidgen`",
+                  "datacontenttype": "application/json",
+                  "knativebrokerttl": 255,
+                  "data": {
+                    "iodocument": {                                                                                                                                                                     
+                      "ps1": "${MINDWM_E2E_PS1}",
+                      "input": "${MINDWM_E2E_INPUT_CMD}",
+                      "output": "${MINDWM_E2E_EXPECTED_OUTPUT}",                                                                                              
+                      "full_cmd": "${MINDWM_E2E_INPUT_CMD}"                                                                  
+                    }                               
+                  }
+                }       
+                EOF
+      - window_name: nats
+        layout: main-horizontal
+        panes:
+          - shell_command:
+              - |
+                pane_title "nats_wait"
+                nats -s ${NATS_URL} sub -r ${MINDWM_BACK_NATS_SUBJECT_PREFIX}.iodocument --count 1
+          - shell_command:
+              - |
+                watch nats -s ${NATS_URL} stream ls
+#---
+#apiVersion: v1
+#kind: ServiceAccount
+#metadata:
+#  name: cluster-admin-sa
+#---
+#apiVersion: rbac.authorization.k8s.io/v1
+#kind: ClusterRoleBinding
+#metadata:
+#  name: cluster-admin-sa-binding
+#subjects:
+#- kind: ServiceAccount
+#  name: cluster-admin-sa
+#  namespace: default
+#roleRef:
+#  kind: ClusterRole
+#  name: cluster-admin
+#  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mindwm-e2e
+  namespace: default
+  labels:
+    app: mindwm-e2e
+spec:
+  serviceAccountName: cluster-admin-sa
+  containers:
+  - name: mindwme-e2e
+    image: ghcr.io/mindwm/mindwm-image/mindwm-image:mindwm-client
+    env:
+      - name: CONTEXT_NAME
+        value: "team-a"
+      - name: NEO4J_USERNAME
+        value: "neo4j"
+      - name: NEO4J_PASSWORD
+        value: password
+    # imagePullPolicy: Always
+    volumeMounts:
+      - mountPath: /root/.tmuxp/
+        name: config-volume
+    ports:
+      - containerPort: 80
+        name: ttyd
+  volumes:
+    - name: config-volume
+      configMap:
+        name: mindwm-e2e-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mindwm-e2e-service
+  namespace: default
+spec:
+  selector:
+    app: mindwm-e2e
+  ports:
+    - port: 80
+      name: ttyd
+      nodePort: 30112
+  type: LoadBalancer
