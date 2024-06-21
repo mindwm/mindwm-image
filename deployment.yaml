@@ -70,6 +70,24 @@ data:
         
 ---
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cluster-admin-sa
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-admin-sa-binding
+subjects:
+- kind: ServiceAccount
+  name: cluster-admin-sa
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
 kind: Pod
 metadata:
   name: mindwm-client
@@ -77,6 +95,7 @@ metadata:
   labels:
     app: mindwm-client
 spec:
+  serviceAccountName: cluster-admin-sa
   containers:
   - name: mindwm-client
     image: ghcr.io/mindwm/mindwm-image/mindwm-image:mindwm-client
