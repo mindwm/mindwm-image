@@ -69,6 +69,15 @@ data:
               EOF
             - |
               kubectl apply -f user.yaml -f host.yaml
+      - window_name: neo4j
+        layout: main-horizontal
+        panes:
+          - shell_command: 
+            - |
+              cd /usr/local/cypher-shell/bin
+              ./cypher-shell -a bolt://team-a-neo4j.context-${CONTEXT_NAME}:7687 -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD}
+            - |
+              MATCH (n) RETURN count(n) AS totalNodes;
         
 ---
 apiVersion: v1
@@ -104,7 +113,11 @@ spec:
     env:
       - name: CONTEXT_NAME
         value: "team-a"
-    imagePullPolicy: Always
+      - name: NEO4J_USERNAME
+        value: "neo4j"
+      - name: NEO4J_PASSWORD
+        value: password
+    # imagePullPolicy: Always
     volumeMounts:
       - mountPath: /root/.tmuxp/
         name: config-volume
