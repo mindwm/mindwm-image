@@ -17,6 +17,14 @@ data:
           TITLE="TEST: $(tmux display-message -t ${tmux_window} -p '#W'): $*";
           printf '\e]0;%s\e\\' "${TITLE}";  
         }
+      - |
+        wait_for_state() {
+          while :; do
+            echo -n .
+            tmux list-panes -a -F '#{pane_title}' | grep "$*" && break
+            sleep 1
+          done
+        } 
       - 'tmux set -g pane-border-status bottom'
       - export MINDWM_E2E_PS1='root@mindwm-client:~tmp $'
       - export MINDWM_E2E_INPUT_CMD="echo ${MINDWM_UUID}"
@@ -65,6 +73,7 @@ data:
         panes:
           - shell_command:
               - |
+                wait_for_state "TEST: prepare_env: OK"
                 test_pane_title "waiting for nats subscriber"
                 while :; do 
                   pgrep -f "nats -s ${NATS_URL} sub -r ${MINDWM_BACK_NATS_SUBJECT_PREFIX}.iodocument --count 1" || {
@@ -98,6 +107,8 @@ data:
         layout: main-horizontal
         panes:
           - shell_command:
+              - |
+                wait_for_state "TEST: prepare_env: OK"
               - |
                 test_pane_title "run nats"
                 nats -s ${NATS_URL} sub -r ${MINDWM_BACK_NATS_SUBJECT_PREFIX}.iodocument --count 1 | tee nats_message.json
