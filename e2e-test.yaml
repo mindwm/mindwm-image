@@ -185,36 +185,71 @@ data:
 #  name: cluster-admin
 #  apiGroup: rbac.authorization.k8s.io
 ---
-apiVersion: v1
-kind: Pod
+apiVersion: batch/v1
+kind: Job
 metadata:
   name: mindwm-e2e
   namespace: default
   labels:
     app: mindwm-e2e
 spec:
-  serviceAccountName: cluster-admin-sa
-  containers:
-  - name: mindwme-e2e
-    image: ghcr.io/mindwm/mindwm-image/mindwm-image:mindwm-client
-    env:
-      - name: CONTEXT_NAME
-        value: "team-a"
-      - name: NEO4J_USERNAME
-        value: "neo4j"
-      - name: NEO4J_PASSWORD
-        value: password
-    # imagePullPolicy: Always
-    volumeMounts:
-      - mountPath: /root/.tmuxp/
-        name: config-volume
-    ports:
-      - containerPort: 80
-        name: ttyd
-  volumes:
-    - name: config-volume
-      configMap:
-        name: mindwm-e2e-config
+  template:
+    metadata:
+      labels:
+        app: mindwm-e2e
+    spec:
+      serviceAccountName: cluster-admin-sa
+      containers:
+      - name: mindwm-e2e
+        image: ghcr.io/mindwm/mindwm-image/mindwm-image:mindwm-client
+        env:
+          - name: CONTEXT_NAME
+            value: "team-a"
+          - name: NEO4J_USERNAME
+            value: "neo4j"
+          - name: NEO4J_PASSWORD
+            value: password
+        volumeMounts:
+          - mountPath: /root/.tmuxp/
+            name: config-volume
+        ports:
+          - containerPort: 80
+            name: ttyd
+      volumes:
+        - name: config-volume
+          configMap:
+            name: mindwm-e2e-config
+      restartPolicy: OnFailure
+#apiVersion: v1
+#kind: Pod
+#metadata:
+#  name: mindwm-e2e
+#  namespace: default
+#  labels:
+#    app: mindwm-e2e
+#spec:
+#  serviceAccountName: cluster-admin-sa
+#  containers:
+#  - name: mindwme-e2e
+#    image: ghcr.io/mindwm/mindwm-image/mindwm-image:mindwm-client
+#    env:
+#      - name: CONTEXT_NAME
+#        value: "team-a"
+#      - name: NEO4J_USERNAME
+#        value: "neo4j"
+#      - name: NEO4J_PASSWORD
+#        value: password
+#    # imagePullPolicy: Always
+#    volumeMounts:
+#      - mountPath: /root/.tmuxp/
+#        name: config-volume
+#    ports:
+#      - containerPort: 80
+#        name: ttyd
+#  volumes:
+#    - name: config-volume
+#      configMap:
+#        name: mindwm-e2e-config
 
 ---
 apiVersion: v1
