@@ -58,6 +58,7 @@ data:
         panes:
           - shell_command:
               - |
+                pane_title "Fire event: waiting for nats subscriber is ready"
                 while :; do 
                   pgrep -f "nats -s ${NATS_URL} sub -r ${MINDWM_BACK_NATS_SUBJECT_PREFIX}.iodocument --count 1" || {
                     echo -n .
@@ -65,6 +66,7 @@ data:
                   } && break
                 done
               - |
+                pane_title "Fire event: generate and fire io-document cloudevent"
                 cat<<EOF | yq | tee io_document.json | nats -s "${NATS_URL}" pub "${MINDWM_BACK_NATS_SUBJECT_PREFIX}.iodocument"
                 {                                                                                         
                   "specversion": "1.0",
@@ -96,8 +98,6 @@ data:
                 test "`cat nats_message.json | jq -r '.data.iodocument.input'`" == "${MINDWM_E2E_INPUT_CMD}"
                 test "`cat nats_message.json | jq -r '.data.iodocument.output'`" == "${MINDWM_E2E_EXPECTED_OUTPUT}"
                 pane_title "nats_msg: ok"
-
-                
           - shell_command:
               - |
                 watch nats -s ${NATS_URL} stream ls
