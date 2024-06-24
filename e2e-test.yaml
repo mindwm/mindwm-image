@@ -8,7 +8,7 @@ data:
     session_name: mindwm-terminal
     shell_command_before: 
       - set -e 
-      - trap "echo fail; printf '\e]0;%s\e\\' fail; sleep infinity" ERR
+      - trap 'TITLE="`tmux display-message -p \#T` FAIL"; printf "\e]0;%s\e\\" "$TITLE"; sleep infinity' ERR
       - 'tmux set -g pane-border-format "#{pane_index} #{pane_title}"'
       - alias pane_title="printf '\e]0;%s\e\\'"
       - 'tmux set -g pane-border-status bottom'
@@ -44,10 +44,14 @@ data:
                 kubectl apply -f host.yaml
               - | 
                 pane_title "prepare_env: waiting for NatsJetStreamChannel is ready"
-                kubectl wait --namespace user-`whoami` --for=condition=Ready --timeout=180s NatsJetStreamChannel/`hostname`-broker-kne-trigger
-                kubectl wait --namespace user-`whoami` --for=condition=Ready --timeout=180s broker/`hostname`-broker
+                kubectl -n user-`whoami` wait --namespace user-`whoami` --for=condition=Ready --timeout=180s NatsJetStreamChannel/`hostname`-broker-kne-trigger
+                pane_title "prepare_env: wait for broker"
+                kubectl -n user-`whoami` wait --namespace user-`whoami` --for=condition=Ready --timeout=180s broker/`hostname`-broker
                 # Unknown ready status is okay, possible knative jetstream bug
-                kubectl wait --for=condition=READY=Unknown --timeout=180s -n user-root trigger.eventing.knative.dev/trigger-host-broker-to-`hostname`
+                kubectl -n user-`whoami` wait --for=condition=READY=Unknown --timeout=180s -n user-root trigger.eventing.knative.dev/trigger-host-broker-to-`hostname`
+                # Funny, the issue opened on 20 Junl 2018 https://github.com/kubernetes/kubernetes/issues/66456 
+                pane_title "prepare_env: wait for subscription"
+                kubectl -n user-`whoami` wait subscription --for=condition=READY=Unknown --timeout=5s -l eventing.knative.dev/trigger=trigger-host-broker-to-`hostname`
                 pane_title "prepare_env: host environment is ready"
       - window_name: Fire event
         layout: main-horizontal
