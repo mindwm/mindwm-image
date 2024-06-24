@@ -46,6 +46,8 @@ data:
                 pane_title "prepare_env: waiting for NatsJetStreamChannel is ready"
                 kubectl wait --namespace user-`whoami` --for=condition=Ready --timeout=180s NatsJetStreamChannel/`hostname`-broker-kne-trigger
                 kubectl wait --namespace user-`whoami` --for=condition=Ready --timeout=180s broker/`hostname`-broker
+                # Unknown ready status is okay, possible knative jetstream bug
+                kubectl wait --for=condition=READY=Unknown --timeout=180s -n user-root trigger.eventing.knative.dev/trigger-host-broker-to-`hostname`
                 pane_title "prepare_env: host environment is ready"
       - window_name: Fire event
         layout: main-horizontal
