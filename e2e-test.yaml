@@ -127,6 +127,11 @@ data:
         layout: main-horizontal
         panes:
           - shell_command:
+              - | 
+                set +e
+                trap -p
+                sleep 20
+                trap - ERR
               - |
                 pane_title "test guard"
                 cat<<'EOF' | tee watch.sh
@@ -165,6 +170,7 @@ data:
                 done
                 EOF
                 bash ./watch.sh
+                echo $? > /tmp/result.txt
 
 #---
 #apiVersion: v1
@@ -202,6 +208,18 @@ spec:
       containers:
       - name: mindwm-e2e
         image: ghcr.io/mindwm/mindwm-image/mindwm-image:mindwm-client
+        command: ["/bin/sh", "-c"]
+        args: 
+          - |
+            export MINDWM_UUID=`uuidgen`;
+            tmuxp load -d ~/.tmuxp/entrypoint.yaml;
+            sleep 3;
+            ttyd -W -p80 tmux attach &
+            while :; do
+                echo .
+                test -f /tmp/result.txt && exit `cat /tmp/result.txt`
+                sleep 1
+            done
         env:
           - name: CONTEXT_NAME
             value: "team-a"
