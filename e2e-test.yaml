@@ -11,6 +11,12 @@ data:
       - trap 'TITLE="`tmux display-message -p \#T` FAIL"; printf "\e]0;%s\e\\" "$TITLE"; sleep infinity' ERR
       - 'tmux set -g pane-border-format "#{pane_index} #{pane_title}"'
       - alias pane_title="printf '\e]0;%s\e\\'"
+      - |
+        test_pane_title() { 
+          tmux_window=`tmux list-panes -a | grep " ${TMUX_PANE} "| cut -d: -f2`
+          TITLE="TEST: $(tmux display-message -t ${tmux_window} -p '#W'): $*";
+          printf '\e]0;%s\e\\' "${TITLE}";  
+        }
       - 'tmux set -g pane-border-status bottom'
       - export MINDWM_E2E_PS1='root@mindwm-client:~tmp $'
       - export MINDWM_E2E_INPUT_CMD="echo ${MINDWM_UUID}"
@@ -29,7 +35,7 @@ data:
         panes:
           - shell_command:
               - |
-                pane_title "prepare_env: generate host.yaml"
+                test_pane_title "generate host.yaml"
                 cat<<EOF | yq | tee host.yaml 
                 apiVersion: mindwm.io/v1beta1
                 kind: Host
@@ -40,25 +46,26 @@ data:
                   username: "`whoami`"
                 EOF
               - |
-                pane_title "prepare_env: apply host.yaml"
+                test_pane_title "apply host.yaml"
                 kubectl apply -f host.yaml
               - | 
-                pane_title "prepare_env: waiting for NatsJetStreamChannel is ready"
+                test_pane_title "waiting for NatsJetStreamChannel is ready"
                 kubectl -n user-`whoami` wait --namespace user-`whoami` --for=condition=Ready --timeout=180s NatsJetStreamChannel/`hostname`-broker-kne-trigger
-                pane_title "prepare_env: wait for broker"
+                test_pane_title "wait for broker"
                 kubectl -n user-`whoami` wait --namespace user-`whoami` --for=condition=Ready --timeout=180s broker/`hostname`-broker
                 # Unknown ready status is okay, possible knative jetstream bug
+                test_pane_title "waiting for trigger"
                 kubectl -n user-`whoami` wait --for=condition=READY=Unknown --timeout=180s -n user-root trigger.eventing.knative.dev/trigger-host-broker-to-`hostname`
                 # Funny, the issue opened on 20 Junl 2018 https://github.com/kubernetes/kubernetes/issues/66456 
-                pane_title "prepare_env: wait for subscription"
+                test_pane_title "waiting for subscription"
                 kubectl -n user-`whoami` wait subscription --for=condition=READY=Unknown --timeout=5s -l eventing.knative.dev/trigger=trigger-host-broker-to-`hostname`
-                pane_title "prepare_env: host environment is ready"
+                test_pane_title "OK"
       - window_name: Fire event
         layout: main-horizontal
         panes:
           - shell_command:
               - |
-                pane_title "Fire event: waiting for nats subscriber is ready"
+                test_pane_title "waiting for nats subscriber"
                 while :; do 
                   pgrep -f "nats -s ${NATS_URL} sub -r ${MINDWM_BACK_NATS_SUBJECT_PREFIX}.iodocument --count 1" || {
                     echo -n .
@@ -66,8 +73,8 @@ data:
                   } && break
                 done
               - |
-                pane_title "Fire event: generate and fire io-document cloudevent"
-                cat<<EOF | yq | tee io_document.json | nats -s "${NATS_URL}" pub "${MINDWM_BACK_NATS_SUBJECT_PREFIX}.iodocument"
+                test_pane_title "generate and fire io-document cloudevent"
+                cat<<EOF | jq | tee io_document.json | nats -s "${NATS_URL}" pub "${MINDWM_BACK_NATS_SUBJECT_PREFIX}.iodocument"
                 {                                                                                         
                   "specversion": "1.0",
                   "type": "iodocument",
@@ -86,21 +93,68 @@ data:
                   }
                 }       
                 EOF
+                test_pane_title "OK"
       - window_name: nats
         layout: main-horizontal
         panes:
           - shell_command:
               - |
-                pane_title "nats_msg: ok run nats"
+                test_pane_title "run nats"
                 nats -s ${NATS_URL} sub -r ${MINDWM_BACK_NATS_SUBJECT_PREFIX}.iodocument --count 1 | tee nats_message.json
               - | 
+                test_pane_title "test ps1"
                 test "`cat nats_message.json | jq -r '.data.iodocument.ps1'`" == "${MINDWM_E2E_PS1}"
+                test_pane_title "test input"
                 test "`cat nats_message.json | jq -r '.data.iodocument.input'`" == "${MINDWM_E2E_INPUT_CMD}"
+                test_pane_title "test output"
                 test "`cat nats_message.json | jq -r '.data.iodocument.output'`" == "${MINDWM_E2E_EXPECTED_OUTPUT}"
-                pane_title "nats_msg: ok"
+                test_pane_title "OK"
+
+
+
+      - window_name: test-guard
+        layout: main-horizontal
+        panes:
           - shell_command:
               - |
-                watch nats -s ${NATS_URL} stream ls
+                pane_title "test guard"
+                cat<<'EOF' | tee watch.sh
+                MAX_TIMEOUT=100
+                START="`date +%s`"
+
+                dump_state() {
+                        tmux list-panes -a -F '#{pane_title}'
+                } 
+
+                while :; do 
+                        dump_state > new_state.txt
+                        running=`expr $(date +%s) - $START` 
+                        diff -Nur state.txt new_state.txt || {
+                                # State change event
+                                diff -Nur state.txt new_state.txt | grep 'TEST:.* FAIL$' && {
+                                        echo "TEST FAIL"
+                                        exit 1
+                                }
+                                awk '/^TEST:.*/ { 
+                                        if ($0 !~ /^TEST:.* OK/) {
+                                                exit 1
+                                        }
+                                }' new_state.txt && {
+                                        echo "ALL TESTS PASSED"
+                                        exit 0 
+                                }
+                        }
+                        mv new_state.txt state.txt
+                        if [ $running -ge $MAX_TIMEOUT ] ; then
+                                echo "TIMEOUT"
+                                exit 2
+                        fi
+                        sleep 1
+
+                done
+                EOF
+                bash ./watch.sh
+
 #---
 #apiVersion: v1
 #kind: ServiceAccount
@@ -165,3 +219,9 @@ spec:
       name: ttyd
       nodePort: 30112
   type: LoadBalancer
+
+
+
+#- shell_command:
+#- |
+#watch nats -s ${NATS_URL} stream ls
