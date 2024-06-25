@@ -11,6 +11,8 @@ ADD https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.i686 .
 RUN chmod +x ./ttyd.i686
 RUN git clone -b dev --depth 1 https://github.com/mindwm/poc-mindwm-dev 
 
+FROM apache/kafka:3.7.0 as kafka
+
 FROM alpine:latest
 
 RUN apk update && \
@@ -25,6 +27,7 @@ COPY --from=builder /tmp/nats-0.1.4-linux-amd64/nats /usr/local/bin/nats
 COPY --from=builder /tmp/cypher-shell-5.20.0/ /usr/local/cypher-shell
 COPY --from=builder /tmp/ttyd.i686 /usr/local/bin/ttyd
 COPY --from=builder /tmp/poc-mindwm-dev/mindwm-manager/src/ /usr/local/mindwm-manager
+COPY --from=kafka /opt/kafka /opt/kafka
 COPY ./entrypoint.yaml /root/.tmuxp/entrypoint.yaml
 
 ENV PATH="/usr/local/cypher-shell/bin/:$PATH" 
