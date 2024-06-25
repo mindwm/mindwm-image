@@ -63,7 +63,9 @@ data:
                   kubectl get natsjetstreamchannels.messaging.knative.dev -n user-`whoami` -l eventing.knative.dev/broker=`hostname`-broker | grep `hostname` || {
                     echo -n . 
                     sleep 1
-                  } && break
+                    continue
+                  } 
+                  break
                 done
               - | 
                 test_pane_title "waiting for NatsJetStreamChannel is ready"
@@ -130,6 +132,28 @@ data:
                 test "`cat nats_message.json | jq -r '.data.iodocument.output'`" == "${MINDWM_E2E_EXPECTED_OUTPUT}"
                 test_pane_title "OK"
 
+      - window_name: io-context-knative-func
+        layout: main-horizontal
+        panes:
+          - shell_command:
+              - |
+                wait_for_state "TEST: nats: OK"
+              - |
+                test_pane_title "waiting for io context knative function"
+                while :; do
+                  kubectl -n context-${CONTEXT_NAME} get pod -l serving.knative.dev/service=io-context | grep -i io-context || {
+                    echo -n . 
+                    sleep 1
+                    continue
+                  } 
+                  break
+                done
+              - | 
+                test_pane_title "waiting for io context knative function is ready"
+                kubectl -n context-${CONTEXT_NAME} wait --for=condition=Ready pod --timeout=180s -l serving.knative.dev/service=io-context
+              - | 
+                test_pane_title "OK"
+
 
 
       - window_name: test-guard
@@ -140,6 +164,7 @@ data:
                 set +e
                 trap -p
                 trap - ERR
+                sleep 10
               - |
                 pane_title "test guard"
                 cat<<'EOF' | tee watch.sh
@@ -178,6 +203,7 @@ data:
                 done
                 EOF
                 bash ./watch.sh
+                sleep 10
                 echo $? > /tmp/_result.txt
                 test_pane_title cleanup
                 kubectl delete -f ./host.yaml 
