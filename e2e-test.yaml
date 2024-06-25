@@ -130,7 +130,6 @@ data:
               - | 
                 set +e
                 trap -p
-                sleep 20
                 trap - ERR
               - |
                 pane_title "test guard"
@@ -170,7 +169,11 @@ data:
                 done
                 EOF
                 bash ./watch.sh
-                echo $? > /tmp/result.txt
+                echo $? > /tmp/_result.txt
+                test_pane_title cleanup
+                kubectl delete -f ./host.yaml 
+                mv /tmp/_result.txt /tmp/result.txt
+            
 
 #---
 #apiVersion: v1
