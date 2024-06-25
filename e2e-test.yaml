@@ -37,6 +37,7 @@ data:
       - export MINDWM_BACK_NATS_USER=root
       - export MINDWM_BACK_NATS_PASS=r00tpass
       - export NATS_URL=nats://${MINDWM_BACK_NATS_USER}:${MINDWM_BACK_NATS_PASS}@${MINDWM_BACK_NATS_HOST}:${MINDWM_BACK_NATS_PORT}
+      - test_pane_title "start"
     windows:
       - window_name: prepare_env
         layout: main-horizontal
@@ -56,6 +57,14 @@ data:
               - |
                 test_pane_title "apply host.yaml"
                 kubectl apply -f host.yaml
+              - |
+                test_pane_title "waiting for broker resource"
+                while :; do
+                  kubectl get natsjetstreamchannels.messaging.knative.dev -n user-`whoami` -l eventing.knative.dev/broker=`hostname`-broker | grep `hostname` || {
+                    echo -n . 
+                    sleep 1
+                  } && break
+                done
               - | 
                 test_pane_title "waiting for NatsJetStreamChannel is ready"
                 kubectl -n user-`whoami` wait --namespace user-`whoami` --for=condition=Ready --timeout=180s NatsJetStreamChannel/`hostname`-broker-kne-trigger
