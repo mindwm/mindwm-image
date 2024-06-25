@@ -154,6 +154,20 @@ data:
               - | 
                 test_pane_title "OK"
 
+      - window_name: neo4j-iodocument 
+        layout: main-horizontal
+        panes:
+          - shell_command:
+              - |
+                wait_for_state "TEST: io-context-knative-func: OK"
+              - |
+                test_pane_title "run query"
+                echo "MATCH (n:IoDocument)
+                WHERE n.output = '${MINDWM_E2E_EXPECTED_OUTPUT}' AND n.user_input = '${MINDWM_E2E_INPUT_CMD}' AND n.ps1 = '${MINDWM_E2E_PS1}'
+                RETURN COUNT(n) AS node_count;" | /usr/local/cypher-shell/bin/cypher-shell -a bolt://${CONTEXT_NAME}-neo4j.context-${CONTEXT_NAME}:7687 -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} --format plain --non-interactive | tail -n1 | grep "^1$"
+              - | 
+                test_pane_title "OK"
+
 
 
       - window_name: test-guard
