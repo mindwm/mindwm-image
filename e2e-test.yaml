@@ -47,6 +47,37 @@ data:
                 test_pane_title "generate host.yaml"
                 cat<<EOF | yq | tee resources.yaml 
                 ---
+                apiVersion: serving.knative.dev/v1
+                kind: Service
+                metadata:
+                  name: event-display-mindwm-e2e-test
+                  namespace: context-${CONTEXT_NAME}
+                spec:
+                  template:
+                    spec:
+                      containers:
+                      - env: []
+                        image: gcr.io/knative-releases/knative.dev/eventing/cmd/event_display
+                ---
+                apiVersion: eventing.knative.dev/v1
+                kind: Trigger
+                metadata:
+                  name: all-events-mindwm-e2e-test
+                  namespace: context-${CONTEXT_NAME}
+                spec:
+                  broker: context-broker-${CONTEXT_NAME}
+                  subscriber:
+                    ref:
+                      apiVersion: serving.knative.dev/v1
+                      kind: Service
+                      name: event-display-mindwm-e2e-test
+                  delivery:
+                    deadLetterSink:
+                      ref:
+                        apiVersion: serving.knative.dev/v1
+                        kind: Service
+                        name: event-display-mindwm-e2e-test
+                ---
                 apiVersion: mindwm.io/v1beta1
                 kind: User
                 metadata:
@@ -63,6 +94,9 @@ data:
                   name: "`hostname`"
                   username: "`whoami`"
                 EOF
+              - |
+                test_pane_title "delete resources.yaml"
+                kubectl delete -f resources.yaml || :
               - |
                 test_pane_title "apply resources.yaml"
                 kubectl apply -f resources.yaml
@@ -191,18 +225,22 @@ data:
               - |
                 test_pane_title "waiting for event display pod"
                 while :; do
-                  kubectl -n context-${CONTEXT_NAME} get pod -l serving.knative.dev/service=event-display | grep -i event-display || {
+                  kubectl -n context-${CONTEXT_NAME} get pod -l serving.knative.dev/service=event-display-mindwm-e2e-test | grep -i event-display || {
                     echo -n . 
                     sleep 1
                     continue
                   } 
                   break
+                done
               - |
                 test_pane_title "waiting for event-display is ready"
-                kubectl -n context-${CONTEXT_NAME} wait --for=condition=Ready pod --timeout=180s -l serving.knative.dev/service=event-display
+                kubectl -n context-${CONTEXT_NAME} wait --for=condition=Ready pod --timeout=180s -l serving.knative.dev/service=event-display-mindwm-e2e-test
               - |
                 test_pane_title "capture logs"
-                kubectl -n context-${CONTEXT_NAME} logs -f -l serving.knative.dev/service=event-display | tee /tmp/cloudevent.log
+                # kubectl -n context-${CONTEXT_NAME} logs -f -l serving.knative.dev/service=event-display-mindwm-e2e-test | awk '{if ($0 !~ ".*cloudevents.Event$") {printf("%s ", $0) } else { print }} END { print }' | tee /tmp/cloudevent.log
+                POD_NAME=`kubectl -n context-${CONTEXT_NAME} get pods -l serving.knative.dev/service=event-display-mindwm-e2e-test --field-selector=status.phase=Running -o custom-columns=POD_NAME:.metadata.name --no-headers`
+                # kubectl -n context-${CONTEXT_NAME} logs -f --since=0 ${POD_NAME} | awk '{if ($0 !~ ".*cloudevents.Event$") {printf("%s ", $0) } else { print }} END { print }' | tee /tmp/cloudevent.log
+                kubectl -n context-${CONTEXT_NAME} logs -f --since=0 ${POD_NAME} | awk '{if ($0 !~ ".*cloudevents.Event$") {printf("%s ", $0) } else { print }} END { print }' | tee /tmp/cloudevent.log
               - | 
                 test_pane_title "OK"
 
