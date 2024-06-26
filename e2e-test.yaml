@@ -168,6 +168,29 @@ data:
               - | 
                 test_pane_title "OK"
 
+      - window_name: context-broker
+        layout: main-horizontal
+        panes:
+          - shell_command:
+              - |
+                wait_for_state "TEST: nats: OK"
+              - |
+                test_pane_title "waiting for event display pod"
+                while :; do
+                  kubectl -n context-${CONTEXT_NAME} get pod -l serving.knative.dev/service=event-display | grep -i event-display || {
+                    echo -n . 
+                    sleep 1
+                    continue
+                  } 
+                  break
+              - |
+                test_pane_title "waiting for event-display is ready"
+                kubectl -n context-${CONTEXT_NAME} wait --for=condition=Ready pod --timeout=180s -l serving.knative.dev/service=event-display
+              - |
+                test_pane_title "capture logs"
+                kubectl -n context-${CONTEXT_NAME} logs -f -l serving.knative.dev/service=event-display | tee /tmp/cloudevent.log
+              - | 
+                test_pane_title "OK"
 
 
       - window_name: test-guard
@@ -224,24 +247,24 @@ data:
                 mv /tmp/_result.txt /tmp/result.txt
             
 
-#---
-#apiVersion: v1
-#kind: ServiceAccount
-#metadata:
-#  name: cluster-admin-sa
-#---
-#apiVersion: rbac.authorization.k8s.io/v1
-#kind: ClusterRoleBinding
-#metadata:
-#  name: cluster-admin-sa-binding
-#subjects:
-#- kind: ServiceAccount
-#  name: cluster-admin-sa
-#  namespace: default
-#roleRef:
-#  kind: ClusterRole
-#  name: cluster-admin
-#  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cluster-admin-sa
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-admin-sa-binding
+subjects:
+- kind: ServiceAccount
+  name: cluster-admin-sa
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: batch/v1
 kind: Job
