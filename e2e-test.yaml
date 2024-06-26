@@ -242,6 +242,14 @@ data:
                 # kubectl -n context-${CONTEXT_NAME} logs -f --since=0 ${POD_NAME} | awk '{if ($0 !~ ".*cloudevents.Event$") {printf("%s ", $0) } else { print }} END { print }' | tee /tmp/cloudevent.log
                 kubectl -n context-${CONTEXT_NAME} logs -f --since=0 ${POD_NAME} | awk '{if ($0 !~ ".*cloudevents.Event$") {printf("%s ", $0) } else { print }} END { print }' | tee /tmp/cloudevent.log
               - | 
+                grep 'type: created.*source: graph.node.*subject: IoDocument' /tmp/cloudevent.log | sed 's/.*Data,   //;s/ } ..  cloudevents.Event$/}/' > /tmp/iodocument.json
+              - | 
+                test_pane_title "iodocument test ps1"
+                test "`cat /tmp/iodocument.json | jq -r '.payload.after.properties.ps1'`" == "${MINDWM_E2E_PS1}"
+                test_pane_title "iodocument test input"
+                test "`cat /tmp/iodocument.json | jq -r '.payload.after.properties.user_input'`" == "${MINDWM_E2E_INPUT_CMD}"
+                test_pane_title "iodocument test output"
+                test "`cat /tmp/iodocument.json | jq -r '.payload.after.properties.output'`" == "${MINDWM_E2E_EXPECTED_OUTPUT}"
                 test_pane_title "OK"
 
 
@@ -257,7 +265,7 @@ data:
               - |
                 pane_title "test guard"
                 cat<<'EOF' | tee watch.sh
-                MAX_TIMEOUT=100
+                MAX_TIMEOUT=350
                 START="`date +%s`"
 
                 dump_state() {
