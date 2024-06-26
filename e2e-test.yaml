@@ -216,6 +216,25 @@ data:
               - | 
                 test_pane_title "OK"
 
+      - window_name: kafka-cdc
+        layout: main-horizontal
+        panes:
+          - shell_command:
+              - |
+                test_pane_title "waiting for 10 messages in ${CONTEXT_NAME}-cdc-topic"
+                cd /opt/kafka/bin
+                ./kafka-console-consumer.sh --max-messages=10 --bootstrap-server neo4j-cdc.redpanda.svc.cluster.local:9093 --topic team-a-cdc-topic | tee /tmp/kafka-cdc.log
+              - |
+                test_pane_title "Verify cdc events"
+                grep 'IoDocument.*type":"node"' /tmp/kafka-cdc.log | jq > /tmp/cdc-iodocument.json
+                test_pane_title "cdc-iodocument test ps1"
+                test "`cat /tmp/cdc-iodocument.json | jq -r '.payload.after.properties.ps1'`" == "${MINDWM_E2E_PS1}"
+                test_pane_title "cdc-iodocument test input"
+                test "`cat /tmp/cdc-iodocument.json | jq -r '.payload.after.properties.user_input'`" == "${MINDWM_E2E_INPUT_CMD}"
+                test_pane_title "cdc-iodocument test output"
+                test "`cat /tmp/cdc-iodocument.json | jq -r '.payload.after.properties.output'`" == "${MINDWM_E2E_EXPECTED_OUTPUT}"
+                test_pane_title "OK"
+
       - window_name: context-broker
         layout: main-horizontal
         panes:
@@ -342,7 +361,8 @@ spec:
       serviceAccountName: cluster-admin-sa
       containers:
       - name: mindwm-e2e
-        image: ghcr.io/mindwm/mindwm-image/mindwm-image:mindwm-client
+        image: ghcr.io/mindwm/mindwm-image/mindwm-image:mindwm-e2e-test
+          #imagePullPolicy: Always
         command: ["/bin/sh", "-c"]
         args: 
           - |
@@ -392,7 +412,7 @@ spec:
 #        value: "neo4j"
 #      - name: NEO4J_PASSWORD
 #        value: password
-#    # imagePullPolicy: Always
+#    imagePullPolicy: Always
 #    volumeMounts:
 #      - mountPath: /root/.tmuxp/
 #        name: config-volume
