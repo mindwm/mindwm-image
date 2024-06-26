@@ -45,7 +45,16 @@ data:
           - shell_command:
               - |
                 test_pane_title "generate host.yaml"
-                cat<<EOF | yq | tee host.yaml 
+                cat<<EOF | yq | tee resources.yaml 
+                ---
+                apiVersion: mindwm.io/v1beta1
+                kind: User
+                metadata:
+                  name: user
+                spec:
+                  context: [ "team-a" ]
+                  name: "`whoami`"
+                ---
                 apiVersion: mindwm.io/v1beta1
                 kind: Host
                 metadata:
@@ -55,8 +64,8 @@ data:
                   username: "`whoami`"
                 EOF
               - |
-                test_pane_title "apply host.yaml"
-                kubectl apply -f host.yaml
+                test_pane_title "apply resources.yaml"
+                kubectl apply -f resources.yaml
               - |
                 test_pane_title "waiting for broker resource"
                 while :; do
@@ -68,9 +77,14 @@ data:
                   break
                 done
               - | 
+                test_pane_title "waiting for user-broker"
+                kubectl -n user-`whoami` wait --namespace user-`whoami` --for=condition=Ready --timeout=180s broker/user-`whoami`-broker
+                test_pane_title "waiting for user -> context trigger"
+                kubectl -n user-`whoami` wait --for=condition=READY=True --timeout=180s -n user-root trigger.eventing.knative.dev/trigger-user-broker-to-${CONTEXT_NAME}
+              - | 
                 test_pane_title "waiting for NatsJetStreamChannel is ready"
                 kubectl -n user-`whoami` wait --namespace user-`whoami` --for=condition=Ready --timeout=180s NatsJetStreamChannel/`hostname`-broker-kne-trigger
-                test_pane_title "wait for broker"
+                test_pane_title "waitiing for broker"
                 kubectl -n user-`whoami` wait --namespace user-`whoami` --for=condition=Ready --timeout=180s broker/`hostname`-broker
                 # Unknown ready status is okay, possible knative jetstream bug
                 test_pane_title "waiting for trigger"
@@ -243,7 +257,7 @@ data:
                 sleep 10
                 echo $? > /tmp/_result.txt
                 test_pane_title cleanup
-                kubectl delete -f ./host.yaml 
+                kubectl delete -f ./resources.yaml
                 mv /tmp/_result.txt /tmp/result.txt
             
 
